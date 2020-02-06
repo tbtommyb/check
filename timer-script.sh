@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 
+set -e
+
 DATE=$(date "+%Y-%m-%d")
 TIME=$(date "+%H:%M")
-LOG_FILE=/Users/thomasbarrett/hours.log
+LOG_FILE=$( printf "$HOME/hours/%s.log" $(date "+%Y-%m"))
 
 if [ ! -f $LOG_FILE ]; then
   touch $LOG_FILE
