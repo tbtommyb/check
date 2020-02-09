@@ -6,17 +6,21 @@ DATE=$(date "+%Y-%m-%d")
 TIME=$(date "+%H:%M")
 LOG_FILE=$( printf "$HOME/hours/%s.log" $(date "+%Y-%m"))
 
+hours_diff() {
+  echo "scale=2; $(($(date -jf "%H:%M" "$1" +%s) - $(date -jf "%H:%M" "$2" +%s))) / (60*60)" | bc
+}
+
 if [ ! -f $LOG_FILE ]; then
   touch $LOG_FILE
 fi
 
 if [ "$#" -ne 1 ]; then
-  echo "Usage: check in|out"
+  echo "Usage: check in|out|average"
   exit 1
 fi
 
-if [[ ! "$1" =~ ^(in|out)$ ]]; then
-  echo "Usage: check in|out"
+if [[ ! "$1" =~ ^(in|out|average)$ ]]; then
+  echo "Usage: check in|out|average"
   exit 1
 fi
 
@@ -25,16 +29,18 @@ if [[ "$1" == "in" ]]; then
   then
     echo "Error: already checked in today"
   else
-    printf "%s: %s\n" $DATE $TIME >> $LOG_FILE
+    printf "%s %s\n" $DATE $TIME >> $LOG_FILE
   fi
 fi
 
 if [[ "$1" == "out" ]]; then
   if grep -Fq $DATE $LOG_FILE
   then
-    if grep -qe "$DATE: [0-9][0-9]:[0-9][0-9]$" $LOG_FILE
-    then
-      sed -i '.bak' "/^$DATE:/ s/$/ - $TIME/" $LOG_FILE
+    # Would be nice to use awk here but calling out to hours_diff is a pain
+    if LINE=$( grep -e "$DATE [0-9][0-9]:[0-9][0-9]$" $LOG_FILE ); then
+      START_TIME=$( echo $LINE | cut -f2 -d' ')
+      TIME_DIFF=$( hours_diff $TIME $START_TIME)
+      sed -i '.bak' "/^$DATE/ s/$/ $TIME $TIME_DIFF/" $LOG_FILE
     else
       echo "Error: already checked out today"
       exit 1
@@ -43,4 +49,8 @@ if [[ "$1" == "out" ]]; then
     echo "Error: not yet checked in today"
     exit 1
   fi
+fi
+
+if [[ "$1" == "average" ]]; then
+  awk '{ sum += $4; n++ } END { if (n > 0) print sum / n; }' $LOG_FILE
 fi
